@@ -18,18 +18,33 @@ const STELLAR_TESTNET = {
   horizonUrl: 'https://horizon-testnet.stellar.org'
 }
 
-const wrapFreighterCall = async (fn, errorMsg) => {
-  try {
-    return await fn()
-  } catch (e) {
-    if (e.message?.includes('message port closed') || 
-        e.message?.includes('async response')) {
-      console.warn('Freighter communication error, retrying...')
-      await new Promise(r => setTimeout(r, 500))
-      return await fn()
+const wrapFreighterCall = async (fn, errorMsg, retries = 2) => {
+  let lastError = null
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const result = await fn()
+      if (result && result.error) {
+        throw new Error(result.error.message || result.error.toString())
+      }
+      return result
+    } catch (e) {
+      lastError = e
+      const isRetryable = e.message?.includes('message port closed') || 
+                          e.message?.includes('async response') ||
+                          e.message?.includes('Extension context invalidated')
+      if (isRetryable && i < retries) {
+        console.warn(`Freighter error, retrying (${i + 1}/${retries})...`, e.message)
+        await new Promise(r => setTimeout(r, 800 * (i + 1)))
+      } else {
+        throw new Error(errorMsg || lastError.message)
+      }
     }
-    throw new Error(errorMsg || e.message)
   }
+  throw new Error(errorMsg || lastError?.message)
+}
+
+const isValidStellarAddress = (address) => {
+  return /^G[A-Z0-9]{55}$/.test(address)
 }
 
 function App() {
@@ -115,18 +130,38 @@ function App() {
       return
     }
 
+    if (!isValidStellarAddress(recipient)) {
+      setStatus({ type: 'error', message: 'Invalid Stellar address. Must start with G and be 56 characters.' })
+      return
+    }
+
+    const amountNum = parseFloat(amount)
+    if (isNaN(amountNum) || amountNum <= 0) {
+      setStatus({ type: 'error', message: 'Invalid amount. Must be greater than 0.' })
+      return
+    }
+
     setIsLoading(true)
     setStatus({ type: '', message: '' })
     setTxHash('')
 
     try {
+      setStatus({ type: '', message: 'Fetching account info...' })
+      
       const response = await fetch(
         `https://horizon-testnet.stellar.org/accounts/${publicKey}`
       )
       if (!response.ok) {
-        throw new Error('Failed to fetch account')
+        if (response.status === 404) {
+          throw new Error('Account not found on Stellar testnet. Make sure your wallet is funded.')
+        }
+        throw new Error(`Failed to fetch account: HTTP ${response.status}`)
       }
       const accountData = await response.json()
+
+      if (!accountData.sequence) {
+        throw new Error('Invalid account data received')
+      }
 
       const account = new Account(publicKey, String(accountData.sequence))
 
@@ -216,8 +251,17 @@ function App() {
       setAmount('')
     } catch (error) {
       console.error('Transaction error:', error)
-      const errorMsg = error?.message || error?.toString() || 'Unknown error'
-      setStatus({ type: 'error', message: `Transaction failed: ${errorMsg}` })
+      let errorMsg = error?.message || error?.toString() || 'Unknown error'
+      
+      if (errorMsg.includes('rejected') || errorMsg.includes('User declined')) {
+        errorMsg = 'Transaction rejected. Please approve the transaction in your wallet.'
+      } else if (errorMsg.includes('timeout') || errorMsg.includes('timeout')) {
+        errorMsg = 'Transaction timed out. Please try again.'
+      } else if (errorMsg.includes('insufficient')) {
+        errorMsg = 'Insufficient balance for this transaction.'
+      }
+      
+      setStatus({ type: 'error', message: errorMsg })
     }
     setIsLoading(false)
   }, [publicKey, recipient, amount, fetchBalance])
