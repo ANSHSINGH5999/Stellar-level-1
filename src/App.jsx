@@ -4,6 +4,7 @@ import {
   getAddress,
   requestAccess,
   signTransaction,
+  getNetwork,
 } from '@stellar/freighter-api'
 import {
   TransactionBuilder,
@@ -15,6 +16,7 @@ import {
 
 const STELLAR_TESTNET = {
   networkPassphrase: Networks.TESTNET,
+  network: 'TESTNET',
   horizonUrl: 'https://horizon-testnet.stellar.org'
 }
 
@@ -91,7 +93,26 @@ function App() {
         'Failed to check wallet connection'
       )
       if (!connected.isConnected) {
-        setStatus({ type: 'error', message: 'Freighter wallet not installed' })
+        setStatus({ type: 'error', message: 'Freighter wallet not installed or locked' })
+        setFreighterAvailable(false)
+        setIsLoading(false)
+        return
+      }
+
+      const networkDetails = await wrapFreighterCall(
+        () => getNetwork(),
+        'Failed to get network'
+      )
+      
+      if (networkDetails.error) {
+        throw new Error('Could not get network. Please unlock your wallet.')
+      }
+      
+      if (networkDetails.network !== STELLAR_TESTNET.network) {
+        setStatus({ 
+          type: 'error', 
+          message: `Wrong network! Switch Freighter to TESTNET. Current: ${networkDetails.network}` 
+        })
         setIsLoading(false)
         return
       }
@@ -109,9 +130,11 @@ function App() {
         setPublicKey(pubKey)
         await fetchBalance(pubKey)
         setStatus({ type: 'success', message: 'Wallet connected!' })
+        setFreighterAvailable(true)
       }
     } catch (error) {
       console.error('Error connecting wallet:', error)
+      setFreighterAvailable(false)
       setStatus({ type: 'error', message: `Failed to connect: ${error.message}` })
     }
     setIsLoading(false)
