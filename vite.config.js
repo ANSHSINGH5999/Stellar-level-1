@@ -5,5 +5,16 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000
+  },
+  build: {
+    target: 'esnext'
+  },
+  optimizeDeps: {
+    include: ['stellar-sdk']
+  },
+  resolve: {
+    alias: {
+      'stellar-sdk': 'stellar-sdk'
+    }
   }
 })
