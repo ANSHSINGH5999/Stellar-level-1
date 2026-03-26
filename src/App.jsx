@@ -47,6 +47,11 @@ const isValidStellarAddress = (address) => {
   return /^G[A-Z0-9]{55}$/.test(address)
 }
 
+const checkFreighterInstalled = () => {
+  return typeof window !== 'undefined' && 
+    (window.freighterApi || document.querySelector('[data-freighter]') !== null)
+}
+
 function App() {
   const [publicKey, setPublicKey] = useState('')
   const [balance, setBalance] = useState(null)
@@ -56,6 +61,7 @@ function App() {
   const [status, setStatus] = useState({ type: '', message: '' })
   const [txHash, setTxHash] = useState('')
   const [txDetails, setTxDetails] = useState(null)
+  const [freighterAvailable, setFreighterAvailable] = useState(null)
 
   const fetchBalance = useCallback(async (pubKey) => {
     try {
@@ -268,12 +274,15 @@ function App() {
 
   useEffect(() => {
     let mounted = true
-    const checkConnection = async () => {
+    
+    const checkFreighter = async () => {
       try {
         const connected = await wrapFreighterCall(
           () => isConnected(),
           'Connection check failed'
         )
+        setFreighterAvailable(connected.isConnected)
+        
         if (mounted && connected.isConnected) {
           const addressObj = await wrapFreighterCall(
             () => getAddress(),
@@ -285,10 +294,12 @@ function App() {
           }
         }
       } catch (e) {
-        console.log('No wallet connected')
+        console.log('Freighter not available:', e.message)
+        setFreighterAvailable(false)
       }
     }
-    checkConnection()
+    
+    checkFreighter()
     return () => { mounted = false }
   }, [fetchBalance])
 
@@ -339,6 +350,25 @@ function App() {
               Disconnect Wallet
             </button>
           </>
+        ) : freighterAvailable === false ? (
+          <div className="freighter-required">
+            <p>Freighter Wallet is not installed or not allowed.</p>
+            <a 
+              href="https://www.freighter.app/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="install-link"
+            >
+              Install Freighter Wallet
+            </a>
+            <p className="help-text">
+              After installing, make sure to allow this site in Freighter settings.
+            </p>
+          </div>
+        ) : freighterAvailable === null ? (
+          <div className="loading-check">
+            Checking for Freighter...
+          </div>
         ) : (
           <button className="connect-btn" onClick={connectWallet} disabled={isLoading}>
             {isLoading ? 'Connecting...' : 'Connect Freighter Wallet'}

@@ -206,3 +206,39 @@ button:disabled {
   color: #4a5568;
   font-size: 0.85rem;
 }
+
+.freighter-required {
+  padding: 20px;
+  text-align: center;
+}
+
+.freighter-required p {
+  color: #ccc;
+  margin-bottom: 16px;
+}
+
+.install-link {
+  display: inline-block;
+  padding: 12px 24px;
+  background: #00d4aa;
+  color: #1a1a2e;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.install-link:hover {
+  background: #00e6b8;
+}
+
+.help-text {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+}
+
+.loading-check {
+  padding: 40px;
+  text-align: center;
+  color: #7f8c8d;
+}
