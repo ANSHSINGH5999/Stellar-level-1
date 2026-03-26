@@ -1,3 +1,5 @@
+import StellarSdk from 'stellar-sdk';
+
 export const config = {
   api: {
     bodyParser: {
