@@ -144,9 +144,12 @@ function App() {
 
       const txEnvelope = transaction.toXDR()
 
-      const signedTx = await signTransaction(txEnvelope, {
-        networkPassphrase: STELLAR_TESTNET.networkPassphrase
-      })
+      const signedTx = await wrapFreighterCall(
+        () => signTransaction(txEnvelope, {
+          networkPassphrase: STELLAR_TESTNET.networkPassphrase
+        }),
+        'Failed to sign transaction'
+      )
       console.log('Signed transaction:', signedTx)
 
       if (!signedTx) {
