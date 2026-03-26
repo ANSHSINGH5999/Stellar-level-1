@@ -1,5 +1,3 @@
-import StellarSdk from 'stellar-sdk';
-
 export const config = {
   api: {
     bodyParser: {
@@ -32,6 +30,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Invalid transaction XDR format' });
     }
 
+    const StellarSdk = await import('stellar-sdk');
     const server = new StellarSdk.Server('https://horizon-testnet.stellar.org');
     
     let transaction;
