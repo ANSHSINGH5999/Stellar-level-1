@@ -18,6 +18,20 @@ const STELLAR_TESTNET = {
   horizonUrl: 'https://horizon-testnet.stellar.org'
 }
 
+const wrapFreighterCall = async (fn, errorMsg) => {
+  try {
+    return await fn()
+  } catch (e) {
+    if (e.message?.includes('message port closed') || 
+        e.message?.includes('async response')) {
+      console.warn('Freighter communication error, retrying...')
+      await new Promise(r => setTimeout(r, 500))
+      return await fn()
+    }
+    throw new Error(errorMsg || e.message)
+  }
+}
+
 function App() {
   const [publicKey, setPublicKey] = useState('')
   const [balance, setBalance] = useState(null)
@@ -54,14 +68,20 @@ function App() {
     setIsLoading(true)
     setStatus({ type: '', message: '' })
     try {
-      const connected = await isConnected()
+      const connected = await wrapFreighterCall(
+        () => isConnected(),
+        'Failed to check wallet connection'
+      )
       if (!connected.isConnected) {
         setStatus({ type: 'error', message: 'Freighter wallet not installed' })
         setIsLoading(false)
         return
       }
 
-      const addressObj = await requestAccess()
+      const addressObj = await wrapFreighterCall(
+        () => requestAccess(),
+        'Failed to connect to wallet'
+      )
       if (addressObj.error) {
         throw new Error(addressObj.error.message)
       }
@@ -159,11 +179,11 @@ function App() {
       }
 
       const submitResponse = await fetch(
-        `${STELLAR_TESTNET.horizonUrl}/transactions`,
+        '/api/submitTransaction',
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: `tx=${encodeURIComponent(txToSubmit)}`
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ signedTxXdr: txToSubmit })
         }
       )
 
@@ -171,10 +191,7 @@ function App() {
       console.log('Submit result:', result)
 
       if (!submitResponse.ok) {
-        const errorMsg = result.extras?.envelope_xdr 
-          ? `Invalid transaction: ${result.extras.result_codes?.transaction || 'Unknown error'}`
-          : result.detail || result.error || `HTTP ${submitResponse.status}: Transaction failed`
-        throw new Error(errorMsg)
+        throw new Error(result.error || `Transaction failed: ${submitResponse.status}`)
       }
 
       if (!result.hash) {
@@ -206,9 +223,15 @@ function App() {
     let mounted = true
     const checkConnection = async () => {
       try {
-        const connected = await isConnected()
+        const connected = await wrapFreighterCall(
+          () => isConnected(),
+          'Connection check failed'
+        )
         if (mounted && connected.isConnected) {
-          const addressObj = await getAddress()
+          const addressObj = await wrapFreighterCall(
+            () => getAddress(),
+            'Failed to get address'
+          )
           if (mounted && addressObj.address) {
             setPublicKey(addressObj.address)
             await fetchBalance(addressObj.address)
