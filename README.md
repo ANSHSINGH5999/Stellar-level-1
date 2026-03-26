@@ -141,6 +141,7 @@ Open http://localhost:3000 in your browser.
 - Try StellarChain: https://testnet.stellarchain.io
 - Testnet may have been reset
 
+ALL the SCREENSHOT are in this file screenshots/README.md
 ## License
 
 MIT License
