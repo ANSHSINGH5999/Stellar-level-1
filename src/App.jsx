@@ -249,12 +249,17 @@ function App() {
         }
       )
 
+      const responseText = await submitResponse.text()
+      
+      if (!responseText) {
+        throw new Error(`Empty response from server: ${submitResponse.status}`)
+      }
+
       let result
       try {
-        result = await submitResponse.json()
+        result = JSON.parse(responseText)
       } catch (e) {
-        const text = await submitResponse.text()
-        throw new Error(text || `API error: ${submitResponse.status}`)
+        throw new Error(responseText || `API error: ${submitResponse.status}`)
       }
 
       if (!submitResponse.ok) {

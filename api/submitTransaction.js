@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    return res.status(200).json({ status: 'ok' });
   }
 
   if (req.method !== 'POST') {
@@ -37,7 +37,6 @@ export default async function handler(req, res) {
     try {
       transaction = new StellarSdk.Transaction(signedTxXdr, StellarSdk.Networks.TESTNET);
     } catch (e) {
-      console.error('Transaction parse error:', e);
       return res.status(400).json({ error: 'Invalid transaction XDR: ' + e.message });
     }
 
@@ -50,33 +49,34 @@ export default async function handler(req, res) {
       created_at: result.created_at
     });
   } catch (error) {
-    console.error('Transaction submission error:', error);
+    let errorMsg = 'Transaction failed';
     
-    let errorMsg = error.toString();
-    let errorCode = 400;
-
-    if (error.response?.data) {
-      const data = error.response.data;
-      if (data.extras?.result_codes?.transaction) {
-        const txCode = data.extras.result_codes.transaction;
-        if (txCode === 'tx_bad_auth') {
-          errorMsg = 'Transaction authentication failed. The signature may be invalid.';
-        } else if (txCode === 'tx_insufficient_balance') {
-          errorMsg = 'Insufficient balance to complete the transaction.';
-        } else if (txCode === 'tx_too_late') {
-          errorMsg = 'Transaction has expired. Please try again.';
-        } else if (txCode === 'op_no_destination') {
-          errorMsg = 'Destination account does not exist.';
-        } else {
-          errorMsg = `Transaction failed: ${txCode}`;
+    try {
+      if (error.response?.data) {
+        const data = error.response.data;
+        if (data.extras?.result_codes?.transaction) {
+          const txCode = data.extras.result_codes.transaction;
+          if (txCode === 'tx_bad_auth') {
+            errorMsg = 'Transaction authentication failed';
+          } else if (txCode === 'tx_insufficient_balance') {
+            errorMsg = 'Insufficient balance';
+          } else if (txCode === 'tx_too_late') {
+            errorMsg = 'Transaction expired';
+          } else if (txCode === 'op_no_destination') {
+            errorMsg = 'Destination account does not exist';
+          } else {
+            errorMsg = 'Transaction failed: ' + txCode;
+          }
+        } else if (data.detail) {
+          errorMsg = data.detail;
         }
-      } else if (data.detail) {
-        errorMsg = data.detail;
+      } else if (error.message) {
+        errorMsg = error.message;
       }
-    } else if (error.message?.includes('timeout')) {
-      errorMsg = 'Request timed out. Please try again.';
+    } catch (e) {
+      errorMsg = error.toString();
     }
 
-    return res.status(errorCode).json({ error: errorMsg });
+    return res.status(400).json({ error: errorMsg });
   }
 }
