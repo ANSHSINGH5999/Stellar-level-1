@@ -18,7 +18,7 @@ const STELLAR_TESTNET = {
   horizonUrl: 'https://horizon-testnet.stellar.org'
 }
 
-const wrapFreighterCall = async (fn, errorMsg, retries = 2) => {
+const wrapFreighterCall = async (fn, errorMsg, retries = 3) => {
   let lastError = null
   for (let i = 0; i <= retries; i++) {
     try {
@@ -31,10 +31,12 @@ const wrapFreighterCall = async (fn, errorMsg, retries = 2) => {
       lastError = e
       const isRetryable = e.message?.includes('message port closed') || 
                           e.message?.includes('async response') ||
-                          e.message?.includes('Extension context invalidated')
+                          e.message?.includes('Extension context invalidated') ||
+                          e.message?.includes('freighter') ||
+                          e.message?.includes('wallet')
       if (isRetryable && i < retries) {
         console.warn(`Freighter error, retrying (${i + 1}/${retries})...`, e.message)
-        await new Promise(r => setTimeout(r, 800 * (i + 1)))
+        await new Promise(r => setTimeout(r, 1000 * (i + 1)))
       } else {
         throw new Error(errorMsg || lastError.message)
       }
@@ -45,11 +47,6 @@ const wrapFreighterCall = async (fn, errorMsg, retries = 2) => {
 
 const isValidStellarAddress = (address) => {
   return /^G[A-Z0-9]{55}$/.test(address)
-}
-
-const checkFreighterInstalled = () => {
-  return typeof window !== 'undefined' && 
-    (window.freighterApi || document.querySelector('[data-freighter]') !== null)
 }
 
 function App() {
@@ -191,7 +188,6 @@ function App() {
         }),
         'Failed to sign transaction'
       )
-      console.log('Signed transaction:', signedTx)
 
       if (!signedTx) {
         throw new Error('No signed transaction returned')
@@ -214,8 +210,7 @@ function App() {
       } else if (signedTx && signedTx.result) {
         txToSubmit = signedTx.result
       } else {
-        console.error('Unexpected signing format:', signedTx)
-        throw new Error('Unexpected signing result format: ' + JSON.stringify(signedTx))
+        throw new Error('Unexpected signing result format')
       }
 
       if (!txToSubmit) {
@@ -232,7 +227,6 @@ function App() {
       )
 
       const result = await submitResponse.json()
-      console.log('Submit result:', result)
 
       if (!submitResponse.ok) {
         throw new Error(result.error || `Transaction failed: ${submitResponse.status}`)
@@ -242,16 +236,9 @@ function App() {
         throw new Error('No transaction hash returned')
       }
 
-      const verifyRes = await fetch(`${STELLAR_TESTNET.horizonUrl}/transactions/${result.hash}`)
-      if (!verifyRes.ok) {
-        throw new Error('Transaction submitted but could not be verified')
-      }
-      const verifiedTx = await verifyRes.json()
-      console.log('Transaction verified:', verifiedTx)
-
       setTxHash(result.hash)
       setStatus({ type: 'success', message: 'Transaction successful!' })
-      setTxDetails(verifiedTx)
+      setTxDetails(result)
       await fetchBalance(publicKey)
       setRecipient('')
       setAmount('')
@@ -261,8 +248,6 @@ function App() {
       
       if (errorMsg.includes('rejected') || errorMsg.includes('User declined')) {
         errorMsg = 'Transaction rejected. Please approve the transaction in your wallet.'
-      } else if (errorMsg.includes('timeout') || errorMsg.includes('timeout')) {
-        errorMsg = 'Transaction timed out. Please try again.'
       } else if (errorMsg.includes('insufficient')) {
         errorMsg = 'Insufficient balance for this transaction.'
       }
@@ -361,13 +346,29 @@ function App() {
             >
               Install Freighter Wallet
             </a>
+            <button 
+              className="connect-btn" 
+              onClick={() => {
+                setFreighterAvailable(null)
+                setTimeout(() => window.location.reload(), 500)
+              }}
+            >
+              Retry After Installing
+            </button>
             <p className="help-text">
               After installing, make sure to allow this site in Freighter settings.
             </p>
           </div>
         ) : freighterAvailable === null ? (
           <div className="loading-check">
-            Checking for Freighter...
+            <p>Checking for Freighter Wallet...</p>
+            <button 
+              className="connect-btn" 
+              onClick={connectWallet}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Connecting...' : 'Connect Freighter Wallet'}
+            </button>
           </div>
         ) : (
           <button className="connect-btn" onClick={connectWallet} disabled={isLoading}>
@@ -379,19 +380,13 @@ function App() {
           <div className={`status ${status.type}`}>
             {status.message}
             
-            {txDetails ? (
+            {txDetails && (
               <div className="tx-details">
                 <p><strong>Hash:</strong> {txDetails.id?.slice(0, 20)}...</p>
                 <p><strong>Fee:</strong> {txDetails.fee_charged} stroops</p>
                 <p><strong>Operation Count:</strong> {txDetails.operation_count}</p>
-                <p><strong>Created At:</strong> {new Date(txDetails.created_at).toLocaleString()}</p>
               </div>
-            ) : txHash ? (
-              <div className="tx-details">
-                <p><strong>Transaction Hash:</strong></p>
-                <p className="tx-hash">{txHash}</p>
-              </div>
-            ) : null}
+            )}
             
             {txHash && (
               <button 
