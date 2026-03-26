@@ -249,7 +249,13 @@ function App() {
         }
       )
 
-      const result = await submitResponse.json()
+      let result
+      try {
+        result = await submitResponse.json()
+      } catch (e) {
+        const text = await submitResponse.text()
+        throw new Error(text || `API error: ${submitResponse.status}`)
+      }
 
       if (!submitResponse.ok) {
         throw new Error(result.error || `Transaction failed: ${submitResponse.status}`)
