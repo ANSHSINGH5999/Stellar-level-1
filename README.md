@@ -1,6 +1,7 @@
 # Stellar Payment dApp - Level 1
 
-![Stellar Payment dApp](screenshots/hero.png)
+<img width="3420" height="2224" alt="image" src="https://github.com/user-attachments/assets/da5f73af-deed-4c18-af5e-3785d551fdbc" />
+
 
 A beautiful, beginner-friendly decentralized application to send XLM (Stellar Lumens) on the Stellar Testnet using the Freighter wallet extension.
 
@@ -16,20 +17,23 @@ This project demonstrates all core requirements for a basic Stellar payment dApp
 
 ## Screenshots
 
+
 ### 1. Connect Wallet Screen
-![Connect Wallet](screenshots/connect-wallet.png)
+<img width="3420" height="2224" alt="image" src="https://github.com/user-attachments/assets/a1384f7d-842b-4f1b-87b6-4aca5c818ab7" />
+
 - Beautiful dark theme UI with animated effects
 - Clear call-to-action button
 - Network status indicator
 
 ### 2. Connected Wallet
-![Wallet Connected](screenshots/wallet-connected.png)
+<img width="3420" height="2224" alt="image" src="https://github.com/user-attachments/assets/1ce37501-f90f-4222-bf77-d9a5cb4bfb60" />
+
 - Shows connected wallet address
 - Displays current XLM balance
 - Send XLM form visible
 
 ### 3. Transaction Success
-![Transaction Success](screenshots/transaction-success.png)
+<img width="1710" height="1112" alt="Screenshot 2026-03-27 at 8 24 05 AM" src="https://github.com/user-attachments/assets/1e478231-e9ce-4532-ba7c-1527fafc1e8d" />
 - Success confirmation message
 - Transaction hash display
 - Direct link to StellarChain Explorer
